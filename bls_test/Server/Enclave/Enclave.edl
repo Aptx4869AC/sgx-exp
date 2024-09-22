@@ -1,0 +1,13 @@
+enclave {
+    from "sgx_tsgxssl.edl" import *;
+    from "sgx_pthread.edl" import *;
+
+    untrusted {
+        void ocall_print_string([in, string] const char *str);
+    };
+
+    trusted {
+        public void step_1([in,out]unsigned char** element_str,[in,out]size_t * element_str_count);
+ 
+    };
+};
