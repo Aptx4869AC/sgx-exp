@@ -1,6 +1,3 @@
-# control Enclave
-
-
 ######## SGX SDK Settings ########
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
@@ -87,11 +84,9 @@ Enclave_C_Files := $(wildcard $(ENCLAVE_DIR)/*.c) $(wildcard $(ENCLAVE_DIR)/test
 Enclave_Cpp_Objects := $(Enclave_Cpp_Files:.cpp=.o)
 Enclave_C_Objects := $(Enclave_C_Files:.c=.o)
 
-Enclave_Include_Paths := -I. -I$(ENCLAVE_DIR) -I$(SGX_SDK_INC) -I$(SGX_SDK_INC)/tlibc -I$(LIBCXX_INC) -I$(PACKAGE_INC)   -I$(ENCLAVE_DIR)/mcl/include
+Enclave_Include_Paths := -I. -I$(ENCLAVE_DIR) -I$(SGX_SDK_INC) -I$(SGX_SDK_INC)/tlibc -I$(LIBCXX_INC) -I$(PACKAGE_INC)  -I$(ENCLAVE_DIR)/mcl/include
 
-
-SGX_COMMON_CFLAGS += -DXBYAK_NO_EXCEPTION -DMCL_SIZEOF_UNIT=8 -DMCL_MAX_BIT_SIZE=384 -DCYBOZU_DONT_USE_STRING -DCYBOZU_DONT_USE_EXCEPTION -DNDEBUG -DMCL_BINT_ASM=0 -DMCL_MSM=0 -DMCL_STATIC_CODE=1
-Common_C_Cpp_Flags := -Wno-unused-variable -DOS_ID=$(OS_ID) $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden -fpic -fpie -fstack-protector -fno-builtin-printf  -fno-exceptions  -Wformat -Wformat-security $(Enclave_Include_Paths) -include "tsgxsslio.h"
+Common_C_Cpp_Flags := -Wno-unused-variable -DOS_ID=$(OS_ID) -nostdinc -fvisibility=hidden -fpic -fpie -fstack-protector -fno-builtin-printf  -Wformat -Wformat-security $(Enclave_Include_Paths) -include "tsgxsslio.h"
 Enclave_C_Flags := $(Common_C_Cpp_Flags) -Wno-implicit-function-declaration -std=c11
 Enclave_Cpp_Flags :=  $(Common_C_Cpp_Flags) -std=c++11 -nostdinc++
 
@@ -99,17 +94,27 @@ SgxSSL_Link_Libraries := -L$(OPENSSL_LIBRARY_PATH) -Wl,--whole-archive -l$(SGXSS
 						 -l$(OpenSSL_Crypto_Library_Name)
 Security_Link_Flags := -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -pie
 
+
+MCL_DIR = ./Enclave/mcl
+MCL_INC= $(MCL_DIR)/include
+MCL_LINK_LIBS = $(MCL_DIR)/lib/libmclbn384_256.a  $(MCL_DIR)/lib/libmcl.a # 顺序不能调换
+MCL_BLS12_381_PAIRING_CFLAGS := -fno-exceptions \
+	-DXBYAK_NO_EXCEPTION -DMCL_SIZEOF_UNIT=8 -DMCL_MAX_BIT_SIZE=384 -DCYBOZU_DONT_USE_STRING \
+	-DCYBOZU_DONT_USE_EXCEPTION -DNDEBUG -DMCL_BINT_ASM=0 -DMCL_MSM=0 -DMCL_STATIC_CODE=1 -I$(MCL_INC)
+MCL_Link_Flags := $(MCL_BLS12_381_PAIRING_CFLAGS) $(MCL_LINK_LIBS)
+
+
 # Dependency addition
-Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles \
-	$(Security_Link_Flags) \
-	$(SgxSSL_Link_Libraries) -L$(SGX_LIBRARY_PATH) \
+Enclave_Link_Flags := $(MCL_Link_Flags) $(SGX_COMMON_CFLAGS) $(Security_Link_Flags) $(SgxSSL_Link_Libraries) \
+	-Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive  -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group $(ENCLAVE_DIR)/mcl/lib/libmclbn384_256.a $(ENCLAVE_DIR)/mcl/lib/libmcl.a -L/opt/gmp/6.1.2/lib/ -lsgx_tgmp  -lsgx_tstdc -lsgx_pthread  -lsgx_tservice_sim -lsgx_tcxx -lsgx_tcrypto $(TSETJMP_LIB) -l$(Service_Library_Name) -Wl,--end-group \
+	-Wl,--start-group -L/opt/gmp/6.1.2/lib/ -lsgx_tgmp \
+	-lsgx_tstdc -lsgx_tcxx -lsgx_pthread -lsgx_tservice_sim -lsgx_tcrypto $(TSETJMP_LIB) -l$(Service_Library_Name) \
+	-Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
 	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
 	-Wl,--defsym,__ImageBase=0 \
 	-Wl,--version-script=$(ENCLAVE_DIR)/Enclave.lds
-
 
 
 Enclave_Test_Key := $(ENCLAVE_DIR)/Enclave_private.pem
