@@ -108,7 +108,7 @@ MCL_Link_Flags := $(MCL_BLS12_381_PAIRING_CFLAGS) $(MCL_LINK_LIBS)
 Enclave_Link_Flags := $(MCL_Link_Flags) $(SGX_COMMON_CFLAGS) $(Security_Link_Flags) $(SgxSSL_Link_Libraries) \
 	-Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive  -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -L/opt/gmp/6.1.2/lib/ -lsgx_tgmp \
+	-Wl,--start-group \
 	-lsgx_tstdc -lsgx_tcxx -lsgx_pthread -lsgx_tservice_sim -lsgx_tcrypto $(TSETJMP_LIB) -l$(Service_Library_Name) \
 	-Wl,--end-group \
 	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
