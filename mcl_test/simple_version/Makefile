@@ -6,52 +6,59 @@ SGX_DEBUG ?= 1
 include $(SGX_SDK)/buildenv.mk
 
 ifeq ($(shell getconf LONG_BIT), 32)
-	SGX_ARCH := x86
+    SGX_ARCH := x86
 else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
-	SGX_ARCH := x86
+    SGX_ARCH := x86
 endif
 
 ifeq ($(SGX_ARCH), x86)
-	SGX_COMMON_FLAGS := -m32
-	SGX_LIBRARY_PATH := $(SGX_SDK)/lib
-	SGX_ENCLAVE_SIGNER := $(SGX_SDK)/bin/x86/sgx_sign
-	SGX_EDGER8R := $(SGX_SDK)/bin/x86/sgx_edger8r
+    SGX_COMMON_FLAGS := -m32
+    SGX_LIBRARY_PATH := $(SGX_SDK)/lib
+    SGX_ENCLAVE_SIGNER := $(SGX_SDK)/bin/x86/sgx_sign
+    SGX_EDGER8R := $(SGX_SDK)/bin/x86/sgx_edger8r
 else
-	SGX_COMMON_FLAGS := -m64
-	SGX_LIBRARY_PATH := $(SGX_SDK)/lib64
-	SGX_ENCLAVE_SIGNER := $(SGX_SDK)/bin/x64/sgx_sign
-	SGX_EDGER8R := $(SGX_SDK)/bin/x64/sgx_edger8r
+    SGX_COMMON_FLAGS := -m64
+    SGX_LIBRARY_PATH := $(SGX_SDK)/lib64
+    SGX_ENCLAVE_SIGNER := $(SGX_SDK)/bin/x64/sgx_sign
+    SGX_EDGER8R := $(SGX_SDK)/bin/x64/sgx_edger8r
 endif
 
 ifeq ($(SGX_DEBUG), 1)
-ifeq ($(SGX_PRERELEASE), 1)
-$(error Cannot set SGX_DEBUG and SGX_PRERELEASE at the same time!!)
-endif
+    ifeq ($(SGX_PRERELEASE), 1)
+        $(error Cannot set SGX_DEBUG and SGX_PRERELEASE at the same time!!)
+    endif
 endif
 
 ifeq ($(SGX_DEBUG), 1)
-        SGX_COMMON_FLAGS += -O0 -g
+    SGX_COMMON_FLAGS += -O0 -g
 else
-        SGX_COMMON_FLAGS += -O2
+    SGX_COMMON_FLAGS += -O2
 endif
 
 SGX_COMMON_FLAGS += -Wall -Wextra -Winit-self -Wpointer-arith -Wreturn-type \
                     -Waddress -Wsequence-point -Wformat-security \
-                    -Wmissing-include-dirs -Wfloat-equal -Wundef -Wshadow \
-                    -Wcast-align -Wcast-qual -Wconversion -Wredundant-decls
+                    -Wmissing-include-dirs -Wfloat-equal -Wundef \
+                    -Wshadow -Wcast-align -Wcast-qual -Wconversion -Wredundant-decls
+
 SGX_COMMON_CFLAGS := $(SGX_COMMON_FLAGS) -Wjump-misses-init -Wstrict-prototypes -Wunsuffixed-float-constants
 SGX_COMMON_CXXFLAGS := $(SGX_COMMON_FLAGS) -Wnon-virtual-dtor -std=c++11
 
-######## App Settings ########
+# 用户自定义宏定义（其实是没生效的）
+USER_DEFINES = -fno-exceptions -DXBYAK_NO_EXCEPTION -DMCL_SIZEOF_UNIT=8 -DMCL_MAX_BIT_SIZE=384 -DCYBOZU_DONT_USE_STRING -DCYBOZU_DONT_USE_EXCEPTION -DNDEBUG -DMCL_BINT_ASM=0 -DMCL_MSM=0 -DMCL_STATIC_CODE=1
 
+# 将用户自定义的宏定义添加到编译标志中
+SGX_COMMON_CFLAGS += $(USER_DEFINES)
+SGX_COMMON_CXXFLAGS += $(USER_DEFINES)
+
+######## App Settings ########
 ifneq ($(SGX_MODE), HW)
-	Urts_Library_Name := sgx_urts_sim
+    Urts_Library_Name := sgx_urts_sim
 else
-	Urts_Library_Name := sgx_urts
+    Urts_Library_Name := sgx_urts
 endif
 
 App_Cpp_Files := App/App.cpp $(wildcard App/Edger8rSyntax/*.cpp) $(wildcard App/TrustedLibrary/*.cpp)
-App_Include_Paths := -IInclude -IApp -I$(SGX_SDK)/include
+App_Include_Paths := -IInclude -IApp -I$(SGX_SDK)/include -I./Enclave/mcl/include
 
 App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -60,15 +67,15 @@ App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
 #   Prerelease - Macro NDEBUG and EDEBUG enabled.
 #   Release - Macro NDEBUG enabled.
 ifeq ($(SGX_DEBUG), 1)
-        App_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG
+    App_C_Flags += -DDEBUG -UNDEBUG -UEDEBUG
 else ifeq ($(SGX_PRERELEASE), 1)
-        App_C_Flags += -DNDEBUG -DEDEBUG -UDEBUG
+    App_C_Flags += -DNDEBUG -DEDEBUG -UDEBUG
 else
-        App_C_Flags += -DNDEBUG -UEDEBUG -UDEBUG
+    App_C_Flags += -DNDEBUG -UEDEBUG -UDEBUG
 endif
 
 App_Cpp_Flags := $(App_C_Flags)
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread /root/pom/mcl/lib/libmclbn384_256.a /root/pom/mcl/lib/libmcl.a
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
@@ -77,11 +84,11 @@ App_Name := app
 ######## Enclave Settings ########
 
 ifneq ($(SGX_MODE), HW)
-	Trts_Library_Name := sgx_trts_sim
-	Service_Library_Name := sgx_tservice_sim
+    Trts_Library_Name := sgx_trts_sim
+    Service_Library_Name := sgx_tservice_sim
 else
-	Trts_Library_Name := sgx_trts
-	Service_Library_Name := sgx_tservice
+    Trts_Library_Name := sgx_trts
+    Service_Library_Name := sgx_tservice
 endif
 Crypto_Library_Name := sgx_tcrypto
 
@@ -91,24 +98,26 @@ Enclave_Include_Paths := -IInclude -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/i
 Enclave_C_Flags := $(Enclave_Include_Paths) -nostdinc -fvisibility=hidden -fpie -ffunction-sections -fdata-sections $(MITIGATION_CFLAGS)
 CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
 ifeq ($(CC_BELOW_4_9), 1)
-	Enclave_C_Flags += -fstack-protector
+    Enclave_C_Flags += -fstack-protector
 else
-	Enclave_C_Flags += -fstack-protector-strong
+    Enclave_C_Flags += -fstack-protector-strong
 endif
 
 Enclave_Cpp_Flags := $(Enclave_C_Flags) -nostdinc++
-
 # Enable the security flags
 Enclave_Security_Link_Flags := -Wl,-z,relro,-z,now,-z,noexecstack
 
+
 Enclave_Link_Flags := $(MITIGATION_LDFLAGS) $(Enclave_Security_Link_Flags) \
     -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_TRUSTED_LIBRARY_PATH) \
-	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group ./Enclave/mcl/lib/libmclbn384_256.a ./Enclave/mcl/lib/libmcl.a    -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
-	-Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
-	-Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
-	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections   \
-	-Wl,--version-script=Enclave/Enclave.lds
+    -Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
+    -Wl,--start-group \
+    ./Enclave/mcl/lib/libmclbn384_256.a ./Enclave/mcl/lib/libmcl.a \
+    -lsgx_tstdc -lsgx_tcxx -l$(Crypto_Library_Name) -l$(Service_Library_Name) -Wl,--end-group \
+    -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
+    -Wl,-pie,-eenclave_entry -Wl,--export-dynamic \
+    -Wl,--defsym,__ImageBase=0 -Wl,--gc-sections \
+    -Wl,--version-script=Enclave/Enclave.lds
 
 Enclave_Cpp_Objects := $(sort $(Enclave_Cpp_Files:.cpp=.o))
 
@@ -118,23 +127,22 @@ Enclave_Config_File := Enclave/Enclave.config.xml
 Enclave_Test_Key := Enclave/Enclave_private_test.pem
 
 ifeq ($(SGX_MODE), HW)
-ifeq ($(SGX_DEBUG), 1)
-	Build_Mode = HW_DEBUG
-else ifeq ($(SGX_PRERELEASE), 1)
-	Build_Mode = HW_PRERELEASE
+    ifeq ($(SGX_DEBUG), 1)
+        Build_Mode = HW_DEBUG
+    else ifeq ($(Build_Mode), HW_PRERELEASE)
+        Build_Mode = HW_PRERELEASE
+    else
+        Build_Mode = HW_RELEASE
+    endif
 else
-	Build_Mode = HW_RELEASE
+    ifeq ($(SGX_DEBUG), 1)
+        Build_Mode = SIM_DEBUG
+    else ifeq ($(SGX_PRERELEASE), 1)
+        Build_Mode = SIM_PRERELEASE
+    else
+        Build_Mode = SIM_RELEASE
+    endif
 endif
-else
-ifeq ($(SGX_DEBUG), 1)
-	Build_Mode = SIM_DEBUG
-else ifeq ($(SGX_PRERELEASE), 1)
-	Build_Mode = SIM_PRERELEASE
-else
-	Build_Mode = SIM_RELEASE
-endif
-endif
-
 
 .PHONY: all target run
 all: .config_$(Build_Mode)_$(SGX_ARCH)

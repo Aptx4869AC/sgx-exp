@@ -4,9 +4,9 @@ enclave {
 
 
 	trusted {
-        public void ocall_test();
-        public void pair_test();
-        public void bls_test();
+        public void ocall_test(void);
+        public void pair_test(void);
+        public void bls_test(void);
 	};   
 
 	untrusted {
