@@ -1,4 +1,4 @@
-# SGX-EXP
+# sgx-exp
 SGX代码的简单示例
 
 ## :memo: 文件概览
@@ -16,4 +16,5 @@ SGX代码的简单示例
   - 两数相加
 
 - #### mcl_test/
-  - 仅支持 `make SGX_MODE=SIM` 模式，如果能启用 `SGX-MCL` ，**那将会是大突破**
+  - 仅支持 `make SGX_MODE=SIM` 模式
+  - 如果能启用 `SGX-MCL` ，**那将会是大突破, 欢迎一起讨论，因为我也在寻求答案**
